@@ -8,19 +8,29 @@
 <!--link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous"-->
 </head>
 <body ng-controller="RefiningController">
-
+    <p>All Prices are from EVE-Central 5% Jita sell last 24 hours.</p>
+    
     <div>
         <span ng-repeat="mineral in mineralList">
             {{minerals[mineral].name}}: <input type="number" ng-model="requestedMinerals[mineral]" style="width: 6em">
         </span>
+    </div>
+    <div>
+        <span>Transport cost per m<sup>3</sup>: <input type="number" ng-model="haulingOverhead" style="width: 6em">
         <button type="button" ng-click="calculateCompression()">Calculate</button>
     </div>
-    <div>
+    <p>
+        Compressed Ore Load:<br/>
         <span ng-repeat="(ore, qty) in compressedOre.ores" ng-show="qty > 0">{{ores[ore].name}}: {{qty}} </span>
-    </div>
-    <div>
+    </p>
+    <p>
+        Loose Mineral Load:<br/>
         <span ng-repeat="(mineral, qty) in compressedOre.minerals" ng-show="qty > 0">{{minerals[mineral].name}}: {{qty}} </span>
-    </div>
+    </p>
+    <p>
+        Output:<br/>
+        <span ng-repeat="(mineral, qty) in compressedOre.output" ng-show="qty > 0">{{minerals[mineral].name}}: {{qty}} </span>
+    </p>
 
 
     <div>
@@ -28,16 +38,22 @@
             <tr>
                 <th>Ore</th>
                 <th ng-repeat="mineral in mineralList">{{minerals[mineral].name}}</th>
-                <th>Volume</th>
                 <th>Efficiency</th>
+                <th>Volume</th>
+                <th>Value/m<sup>3</sup> Mined</th>
                 <th>Compressed</th>
+                <th>Compressed Sell</th>
+                <th>Refined Value</th>
             </tr>
             <tr ng-repeat="ore in oreList">
                 <td>{{ores[ore].name}}</td>
                 <td ng-repeat="mineral in mineralList">{{singletonYield(ores[ore], mineral)}}</td>
+                <td>{{getRefiningEfficiency(ores[ore]).toLocaleString('en-US', {style: 'percent', maximumSignificantDigits: 6})}}</td>
                 <td>{{ores[ore].volume.ore}}</td>
-                <td>{{getRefiningEfficiency(ores[ore])}}</td>
+                <td>{{calculateMineralEfficiency(ore).toFixed(2)}}</td>
                 <td>{{ores[ore].volume.compressed}}</td>
+                <td>{{prices[ores[ore].id.compressed].toLocaleString('en-US', {maximumFractionDigits: 2})}}</td>
+                <td>{{calculateMineralValue(ore).toLocaleString('en-US', {maximumFractionDigits: 2})}}</td>
             </tr>
         </table>
         <span>

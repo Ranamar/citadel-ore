@@ -1,4 +1,4 @@
-var data = {
+var eveData = {
     ores: {
         arkonor: {
             name: 'Arkonor',
@@ -43,7 +43,7 @@ var data = {
             minerals: {
                 tritanium: 21000,
                 nocxium: 760,
-                zyrdine: 135
+                zydrine: 135
             },
             volume: {
                 ore: 16.0,
@@ -140,6 +140,10 @@ var data = {
         },
         kernite: {
             name: 'Kernite',
+            id: {
+                ore: 20,
+                compressed: 28410
+            },
             minerals: {
                 tritanium: 134,
                 mexallon: 267,
@@ -153,6 +157,10 @@ var data = {
         },
         omber: {
             name: 'Omber',
+            id: {
+                ore: 1227,
+                compressed: 28416
+            },
             minerals: {
                 tritanium: 800,
                 pyerite: 100,
@@ -166,6 +174,10 @@ var data = {
         },
         plagioclase: {
             name: 'Plagioclase',
+            id: {
+                ore: 18,
+                compressed: 28422
+            },
             minerals: {
                 tritanium: 107,
                 pyerite: 213,
@@ -179,6 +191,10 @@ var data = {
         },
         pyroxeres: {
             name: 'Pyroxeres',
+            id: {
+                ore: 1224,
+                compressed: 28424
+            },
             minerals: {
                 tritanium: 351,
                 pyerite: 25,
@@ -193,6 +209,10 @@ var data = {
         },
         scordite: {
             name: 'Scordite',
+            id: {
+                ore: 1228,
+                compressed: 28429
+            },
             minerals: {
                 tritanium: 346,
                 pyerite: 173
@@ -205,6 +225,10 @@ var data = {
         },
         spodumain: {
             name: 'Spodumain',
+            id: {
+                ore: 19,
+                compressed: 28420
+            },
             minerals: {
                 tritanium: 56000,
                 pyerite: 12050,
@@ -219,6 +243,10 @@ var data = {
         },
         veldspar: {
             name: 'Veldspar',
+            id: {
+                ore: 1230,
+                compressed: 28432
+            },
             minerals: {
                 tritanium: 415
             },
