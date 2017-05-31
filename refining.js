@@ -139,14 +139,13 @@ refiningApp.controller('RefiningController', ['$scope', '$http', function Refini
     }
     
     $scope.calculateMineralValue = function(ore) {
-        let oreData = $scope.ores[ore];
-        let output = calculateContributedMinerals(oreData.minerals, oreData, $scope.getRefiningEfficiency(ore));
+        let output = calculateContributedMinerals(ore.minerals, ore, $scope.getRefiningEfficiency(ore));
         let value = $scope.priceMinerals(output.minerals);
         return value;
     }
     
     $scope.calculateMineralEfficiency = function(ore) {
-        return $scope.calculateMineralValue(ore) / ($scope.ores[ore].volume.ore * 100);
+        return $scope.calculateMineralValue(ore) / (ore.volume.ore * 100);
     }
     
     //If, in the future, we want to implement alternate scoring methods, here is where to do it.

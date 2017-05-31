@@ -54,10 +54,10 @@
                 <td ng-repeat="mineral in mineralList">{{singletonYield(ores[ore], mineral)}}</td>
                 <td>{{getRefiningEfficiency(ores[ore]).toLocaleString('en-US', {style: 'percent', maximumSignificantDigits: 6})}}</td>
                 <td>{{ores[ore].volume.ore}}</td>
-                <td>{{calculateMineralEfficiency(ore).toFixed(2)}}</td>
+                <td>{{calculateMineralEfficiency(ores[ore]).toFixed(2)}}</td>
                 <td>{{ores[ore].volume.compressed}}</td>
                 <td>{{prices[ores[ore].id.compressed].toLocaleString('en-US', {maximumFractionDigits: 2})}}</td>
-                <td>{{calculateMineralValue(ore).toLocaleString('en-US', {maximumFractionDigits: 2})}}</td>
+                <td>{{calculateMineralValue(ores[ore]).toLocaleString('en-US', {maximumFractionDigits: 2})}}</td>
             </tr>
         </table>
         <span>
