@@ -21,15 +21,19 @@
     </div>
     <p>
         Compressed Ore Load:<br/>
-        <span ng-repeat="(ore, qty) in compressedOre.ores" ng-show="qty > 0">{{ores[ore].name}}: {{qty}} </span>
+        <span ng-repeat="(ore, qty) in compressedOre.ores" ng-show="qty > 0">{{ores[ore].name}}: {{qty}}; </span>
     </p>
     <p>
         Loose Mineral Load:<br/>
-        <span ng-repeat="(mineral, qty) in compressedOre.minerals" ng-show="qty > 0">{{minerals[mineral].name}}: {{qty}} </span>
+        <span ng-repeat="(mineral, qty) in compressedOre.minerals" ng-show="qty > 0">{{minerals[mineral].name}}: {{qty}}; </span>
+    </p>
+    <p>
+        Total Purchase Cost: {{(priceOre(compressedOre.ores) + priceMinerals(compressedOre.minerals))
+                                                        .toLocaleString('en-US', {maximumFractionDigits: 2})}} ISK
     </p>
     <p>
         Output:<br/>
-        <span ng-repeat="(mineral, qty) in compressedOre.output" ng-show="qty > 0">{{minerals[mineral].name}}: {{qty}} </span>
+        <span ng-repeat="(mineral, qty) in compressedOre.output" ng-show="qty > 0">{{minerals[mineral].name}}: {{qty}}; </span>
     </p>
 
 
@@ -40,7 +44,7 @@
                 <th ng-repeat="mineral in mineralList">{{minerals[mineral].name}}</th>
                 <th>Efficiency</th>
                 <th>Volume</th>
-                <th>Value/m<sup>3</sup> Mined</th>
+                <th>ISK/m<sup>3</sup> Mined</th>
                 <th>Compressed</th>
                 <th>Compressed Sell</th>
                 <th>Refined Value</th>

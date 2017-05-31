@@ -19,21 +19,13 @@ function calculateYield(ore, mineral, efficiency) {
     return content * efficiency;
 };
 
-function calculateContributedMinerals(requirements, allocated, ore, efficiency) {
+function calculateContributedMinerals(requirements, ore, efficiency) {
     var contributed = {};
     var total = 0;
     
     for(var mineral in ore.minerals) {
         if(mineral in requirements) {
-            //Calculate remaining minerals needed
             let target = requirements[mineral];
-            if(mineral in allocated) {
-                target = target - allocated[mineral];
-                if(target <= 0) {
-                    //Bail out early if we have enough of this mineral
-                    continue;
-                }
-            }
             
             let yield = calculateYield(ore, mineral, efficiency);
             if(yield > target) {
@@ -52,11 +44,11 @@ function calculateContributedMinerals(requirements, allocated, ore, efficiency) 
     };
 };
 
-function findLimit(required, allocated, contributed) {
+function findLimit(required, contributed, efficiency) {
     let limits = [];
     for(let mineral in contributed.minerals) {
-        if(mineral in required && mineral in allocated) {
-            limits.push((required[mineral] - allocated[mineral])/contributed.minerals[mineral]);
+        if(mineral in required.minerals) {
+            limits.push(required.minerals[mineral]/(contributed.minerals[mineral]*efficiency));
         }
     }
     let limit = limits.reduce((least, next) => ((least > next && next > 0) ? next : least), Number.MAX_SAFE_INTEGER);
@@ -91,6 +83,9 @@ refiningApp.controller('RefiningController', ['$scope', '$http', function Refini
                                     } }
     ).then(function(response) {
         $scope.prices = extractPrices(response.data);
+    },
+    function(error) {
+        console.log('Error getting prices:', error);
     });
     
     $scope.getRefineryBase = function(ore) {
@@ -132,9 +127,20 @@ refiningApp.controller('RefiningController', ['$scope', '$http', function Refini
         return value;
     }
     
+    $scope.priceOre = function(ores) {
+        let value = 0;
+        //Cutoff while we wait for data
+        if($scope.prices) {
+            for(let ore in ores) {
+                value = value + ores[ore] * $scope.prices[$scope.ores[ore].id.compressed];
+            }
+        }
+        return value;
+    }
+    
     $scope.calculateMineralValue = function(ore) {
         let oreData = $scope.ores[ore];
-        let output = calculateContributedMinerals(oreData.minerals, {}, oreData, $scope.getRefiningEfficiency(ore));
+        let output = calculateContributedMinerals(oreData.minerals, oreData, $scope.getRefiningEfficiency(ore));
         let value = $scope.priceMinerals(output.minerals);
         return value;
     }
@@ -151,51 +157,26 @@ refiningApp.controller('RefiningController', ['$scope', '$http', function Refini
         let value = $scope.priceMinerals(output.minerals);
         let cost = $scope.prices[ore.id.compressed];
         let overhead = ore.volume.compressed * $scope.haulingOverhead;
+        console.log('scoreOre');
+        console.log(ore, output);
+        console.log('value:', value, 'cost:', cost, 'overhead:', overhead);
+        console.log('score:', value / (cost + overhead));
+        console.log('absolute:', cost + overhead - value);
         return value / (cost + overhead);
     }
     
     var scoreMinerals = function(output) {
+        //By volume
+        //return 1/0.01;
         //By value per cost
         let value = $scope.priceMinerals(output.minerals);
         let overhead = output.total * $scope.haulingOverhead * 0.01;
+        console.log('scoreMinerals');
+        console.log(output);
+        console.log('score:', value / (value + overhead));
+        console.log('absolute:', overhead);
         return value / (value + overhead);
     }
-    
-    //This is a helper for selecting and logging ores.
-    var addSomeOre = function(options, ores, minerals, refining, output, required, neededMineral) {
-        let bestOption = null;
-        let bestScore = 0;
-        let score = 0;
-        let oreData = $scope.ores;
-        
-        for(let option in options) {
-            if(bestOption === null) {
-                bestOption = option;
-                bestScore = scoreOre(oreData[option], options[option]);
-            }
-            else {
-                score = scoreOre(oreData[option], options[option]);
-                if(score > bestScore) {
-                    bestOption = option;
-                    bestScore = score;
-                }
-            }
-        }
-        
-        if(bestScore > scoreMinerals(options[bestOption])) {
-            let increment = findLimit(required, output, options[bestOption]);
-            ores[bestOption] = ores[bestOption] + increment;
-            let oreMinerals = oreData[bestOption].minerals;
-            for(let mineral in oreMinerals) {
-                output[mineral] = output[mineral] + (oreMinerals[mineral] * refining[bestOption] * increment);
-            }
-        }
-        else {
-            //Round off the sharp edges of fractional refining
-            minerals[neededMineral] = Math.ceil(required[neededMineral] - output[neededMineral]);
-            output[neededMineral] = Math.floor(output[neededMineral]) + minerals[neededMineral];
-        }
-    };
     
     $scope.calculateCompressedOre = function(mineralsRequired) {
         let refining = {};
@@ -215,74 +196,77 @@ refiningApp.controller('RefiningController', ['$scope', '$http', function Refini
         
         //Hardcoded order because manually unrolling the minerals makes for a simpler, greedy algorithm
         while(true) {
-            if(mineralsRequired.megacyte > output.megacyte) {
-                let options = {
-                    arkonor: calculateContributedMinerals(mineralsRequired, output, oreData.arkonor, refining.arkonor),
-                    bistot: calculateContributedMinerals(mineralsRequired, output, oreData.bistot, refining.bistot)
-                };
-                addSomeOre(options, ores, minerals, refining, output, mineralsRequired, 'megacyte');
-            }
-            else if(mineralsRequired.zydrine > output.zydrine) {
-                let options = {
-                    bistot: calculateContributedMinerals(mineralsRequired, output, oreData.bistot, refining.bistot),
-                    hedbergite: calculateContributedMinerals(mineralsRequired, output, oreData.hedbergite, refining.hedbergite),
-                    hemorphite: calculateContributedMinerals(mineralsRequired, output, oreData.hemorphite, refining.hemorphite),
-                    jaspet: calculateContributedMinerals(mineralsRequired, output, oreData.jaspet, refining.jaspet)
+            let remainder = {
+                minerals: {},
+                total: 0
+            };
+            for(let mineral in mineralsRequired) {
+                if(mineral in output) {
+                    let amount = Math.ceil(mineralsRequired[mineral] - output[mineral]);
+                    if(amount > 0) {
+                        remainder.minerals[mineral] = amount;
+                        remainder.total = remainder.total + amount;
+                    }
+                    //else 0 or negative and don't include it.
                 }
-                addSomeOre(options, ores, minerals, refining, output, mineralsRequired, 'zydrine');
-            }
-            else if(mineralsRequired.nocxium > output.nocxium) {
-                let options = {
-                    crokite: calculateContributedMinerals(mineralsRequired, output, oreData.crokite, refining.crokite),
-                    dark_ochre: calculateContributedMinerals(mineralsRequired, output, oreData.dark_ochre, refining.dark_ochre),
-                    hedbergite: calculateContributedMinerals(mineralsRequired, output, oreData.hedbergite, refining.hedbergite),
-                    hemorphite: calculateContributedMinerals(mineralsRequired, output, oreData.hemorphite, refining.hemorphite),
-                    jaspet: calculateContributedMinerals(mineralsRequired, output, oreData.jaspet, refining.jaspet),
-                    pyroxeres: calculateContributedMinerals(mineralsRequired, output, oreData.pyroxeres, refining.pyroxeres)
+                else {
+                    let amount = mineralsRequired[mineral];
+                    remainder.minerals[mineral] = amount;
+                    remainder.total = remainder.total + amount;
                 }
-                addSomeOre(options, ores, minerals, refining, output, mineralsRequired, 'nocxium');
             }
-            else if(mineralsRequired.isogen > output.isogen) {
-                let options = {
-                    spodumain: calculateContributedMinerals(mineralsRequired, output, oreData.spodumain, refining.spodumain),
-                    dark_ochre: calculateContributedMinerals(mineralsRequired, output, oreData.dark_ochre, refining.dark_ochre),
-                    gneiss: calculateContributedMinerals(mineralsRequired, output, oreData.gneiss, refining.gneiss),
-                    hedbergite: calculateContributedMinerals(mineralsRequired, output, oreData.hedbergite, refining.hedbergite),
-                    hemorphite: calculateContributedMinerals(mineralsRequired, output, oreData.hemorphite, refining.hemorphite),
-                    kernite: calculateContributedMinerals(mineralsRequired, output, oreData.kernite, refining.kernite),
-                    omber: calculateContributedMinerals(mineralsRequired, output, oreData.omber, refining.omber)
+            
+            if(remainder.total > 0) {
+                let bestOption = null;
+                let bestScore = scoreMinerals(remainder);
+                let score = 0;
+                for(let ore in oreData) {
+                    score = scoreOre(oreData[ore], calculateContributedMinerals(remainder.minerals, oreData[ore], refining[ore]));
+                    if(score > bestScore) {
+                        bestOption = ore;
+                        bestScore = score;
+                    }
                 }
-                addSomeOre(options, ores, minerals, refining, output, mineralsRequired, 'isogen');
-            }
-            else if(mineralsRequired.mexallon > output.mexallon) {
-                let options = {
-                    spodumain: calculateContributedMinerals(mineralsRequired, output, oreData.spodumain, refining.spodumain),
-                    gneiss: calculateContributedMinerals(mineralsRequired, output, oreData.gneiss, refining.gneiss),
-                    jaspet: calculateContributedMinerals(mineralsRequired, output, oreData.jaspet, refining.jaspet),
-                    kernite: calculateContributedMinerals(mineralsRequired, output, oreData.kernite, refining.kernite),
-                    plagioclase: calculateContributedMinerals(mineralsRequired, output, oreData.plagioclase, refining.plagioclase),
-                    pyroxeres: calculateContributedMinerals(mineralsRequired, output, oreData.pyroxeres, refining.pyroxeres)
+                
+                if(bestOption != null) {
+                    let increment = findLimit(remainder, oreData[bestOption], refining[bestOption]);
+                    console.log('adding ' + increment + ' ' + oreData[bestOption].name);
+                    ores[bestOption] = ores[bestOption] + increment;
+                    let oreMinerals = oreData[bestOption].minerals;
+                    for(let mineral in oreMinerals) {
+                        output[mineral] = output[mineral] + (oreMinerals[mineral] * refining[bestOption] * increment);
+                    }
                 }
-                addSomeOre(options, ores, minerals, refining, output, mineralsRequired, 'mexallon');
-            }
-            else if(mineralsRequired.pyerite > output.pyerite) {
-                let options = { scordite : calculateContributedMinerals(mineralsRequired, output, oreData.scordite, refining.scordite) };
-                addSomeOre(options, ores, minerals, refining, output, mineralsRequired, 'pyerite');
-            }
-            else if(mineralsRequired.tritanium > output.tritanium) {
-                let options = { veldspar : calculateContributedMinerals(mineralsRequired, output, oreData.veldspar, refining.veldspar) };
-                addSomeOre(options, ores, minerals, refining, output, mineralsRequired, 'tritanium');
+                else {
+                    //We could probably just direct assign it, but we need to iterate for output anyway.
+                    let mineralsToGet = remainder.minerals
+                    for(let mineral in mineralsToGet) {
+                        if(!(mineral in minerals)) {
+                            minerals[mineral] = mineralsToGet[mineral];
+                        }
+                        else {
+                            minerals[mineral] = minerals[mineral] + mineralsToGet[mineral];
+                        }
+                        if(!(mineral in output)) {
+                            output[mineral] = mineralsToGet[mineral];
+                        }
+                        else {
+                            output[mineral] = output[mineral] + mineralsToGet[mineral];
+                        }
+                    }
+                }
             }
             else {
-                console.log('ore: ', ores);
-                console.log('minerals: ', minerals);
-                console.log('output: ', output);
+                //Clean up output
                 for(let mineral in output) {
                     output[mineral] = Math.floor(output[mineral]);
                 }
                 for(let mineral in minerals) {
                     output[mineral] = Math.floor(output[mineral]);
                 }
+                console.log('ore: ', ores);
+                console.log('minerals: ', minerals);
+                console.log('output: ', output);
                 return {
                     ores: ores,
                     minerals: minerals,
