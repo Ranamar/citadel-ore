@@ -76,7 +76,7 @@ refiningApp.controller('RefiningController', ['$scope', '$http', function Refini
         marketIdList.push($scope.minerals[mineral].id)
     }
     
-    $http.get('http://api.eve-central.com/api/marketstat/json',
+    $http.get('https://api.evemarketer.com/ec/marketstat/json',
                                     { params: {
                                         typeid: marketIdList.join(','),
                                         usesystem: 30000142             //Jita
