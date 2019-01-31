@@ -56,48 +56,51 @@ function findLimit(required, contributed, efficiency) {
 }
 
 refiningApp.controller('RefiningController', ['$scope', '$http', function RefiningController($scope, $http) {
-    $scope.oreList = ['arkonor', 'bistot', 'crokite', 'spodumain', 'dark_ochre', 'gneiss', 'hedbergite', 'hemorphite', 'jaspet', 'kernite', 'omber', 'plagioclase', 'pyroxeres', 'scordite', 'veldspar'];
-    $scope.ores = eveData.ores;
-    $scope.mineralList = ['tritanium', 'pyerite', 'mexallon', 'isogen', 'nocxium', 'zydrine', 'megacyte'];
+    $scope.ores = eveData.moon_ores;
+    $scope.oreList = Object.keys($scope.ores);
     $scope.minerals = eveData.minerals;
-    $scope.rigs = ['HS'];
+    $scope.mineralList = Object.keys($scope.minerals);
     $scope.skill_range = [0, 1, 2, 3, 4, 5]
     $scope.skill_reproc = 5;
     $scope.skill_reproc_efficiency = 5;
     $scope.skill_ore_spec = 4;
-    $scope.haulingOverhead = 500;
+    $scope.haulingOverhead = 1000;
     
-    let marketIdList = [];
-    for(let ore in $scope.ores) {
-        marketIdList.push($scope.ores[ore].id.ore);
-        marketIdList.push($scope.ores[ore].id.compressed);
-    }
-    for(let mineral in $scope.minerals) {
-        marketIdList.push($scope.minerals[mineral].id)
+    $scope.getPrices = function() {
+        let marketIdList = [];
+        for(let ore in $scope.ores) {
+            let oreId = $scope.ores[ore].id.ore;
+            if(!!oreId) {
+                marketIdList.push(oreId);
+            }
+            oreId = $scope.ores[ore].id.compressed;
+            if(!!oreId) {
+                marketIdList.push(oreId);
+            }
+        }
+        for(let mineral in $scope.minerals) {
+            marketIdList.push($scope.minerals[mineral].id)
+        }
+        
+        $http.get('https://api.evemarketer.com/ec/marketstat/json',
+                                    {
+                                        params: {
+                                            typeid: marketIdList.join(','),
+                                            usesystem: 30000142             //Jita
+                                        }
+                                    }
+        ).then(function(response) {
+            $scope.prices = extractPrices(response.data);
+        },
+        function(error) {
+            console.log('Error getting prices:', error);
+        });
     }
     
-    $http.get('https://api.evemarketer.com/ec/marketstat/json',
-                                    { params: {
-                                        typeid: marketIdList.join(','),
-                                        usesystem: 30000142             //Jita
-                                    } }
-    ).then(function(response) {
-        $scope.prices = extractPrices(response.data);
-    },
-    function(error) {
-        console.log('Error getting prices:', error);
-    });
+    $scope.getPrices();
     
     $scope.getRefineryBase = function(ore) {
-        if($scope.rigs.includes('HS') && ore.region == 'HS' ||
-            $scope.rigs.includes('LNS') &&
-            (ore.region == 'LS' || ore.region == 'NS')
-        ) {
-            return 0.58;
-        }
-        else {
-            return 0.5;
-        }
+        return 0.594048;    //TODO: actual calculation based on service and rig
     };
     
     $scope.getSkillModifiers = function(ore) {
@@ -111,6 +114,15 @@ refiningApp.controller('RefiningController', ['$scope', '$http', function Refini
         }
         return skill_base;
     };
+    
+    $scope.formatPrice = function(price) {
+        if(price) {
+            return price.toLocaleString('en-US', {maximumFractionDigits: 2});
+        }
+        else {
+            return '-';
+        }
+    }
     
     $scope.singletonYield = function(ore, mineral) {
         return Math.floor(calculateYield(ore, mineral, $scope.getRefiningEfficiency(ore)));
@@ -132,20 +144,34 @@ refiningApp.controller('RefiningController', ['$scope', '$http', function Refini
         //Cutoff while we wait for data
         if($scope.prices) {
             for(let ore in ores) {
-                value = value + ores[ore] * $scope.prices[$scope.ores[ore].id.compressed];
+                if(ores[ore] > 0) {
+                    value = value + ores[ore] * $scope.prices[$scope.ores[ore].id.compressed];
+                }
             }
         }
         return value;
     }
     
     $scope.calculateMineralValue = function(ore) {
-        let output = calculateContributedMinerals(ore.minerals, ore, $scope.getRefiningEfficiency(ore));
+        let oreData = $scope.ores[ore];
+        let output = calculateContributedMinerals(oreData.minerals, oreData, $scope.getRefiningEfficiency(oreData));
         let value = $scope.priceMinerals(output.minerals);
         return value;
     }
     
     $scope.calculateMineralEfficiency = function(ore) {
-        return $scope.calculateMineralValue(ore) / (ore.volume.ore * 100);
+        let oreData = $scope.ores[ore];
+        return $scope.calculateMineralValue(ore) / (oreData.volume.ore * 100);
+    }
+    
+    $scope.calculateExportEfficiency = function(ore) {
+        let oreData = $scope.ores[ore];
+        if($scope.prices && (oreData.id.compressed in $scope.prices)) {
+            return $scope.prices[oreData.id.compressed] / (oreData.volume.ore * 100);
+        }
+        else {
+            return undefined;
+        }
     }
     
     //If, in the future, we want to implement alternate scoring methods, here is where to do it.
@@ -155,6 +181,10 @@ refiningApp.controller('RefiningController', ['$scope', '$http', function Refini
         //By value per cost
         let value = $scope.priceMinerals(output.minerals);
         let cost = $scope.prices[ore.id.compressed];
+        if(cost == 0) {
+            console.log('Zero ore cost detected. bailing out:', ore, cost);
+            return 0;
+        }
         let overhead = ore.volume.compressed * $scope.haulingOverhead;
         console.log('scoreOre');
         console.log(ore, output);

@@ -8,7 +8,7 @@
 <!--link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous"-->
 </head>
 <body ng-controller="RefiningController">
-    <p>All Prices are from EVE-Central 5% Jita sell last 24 hours.</p>
+    <p>All Prices are from EveMarketer 5% Jita sell last 24 hours.</p>
     
     <div>
         <span ng-repeat="mineral in mineralList">
@@ -45,19 +45,21 @@
                 <th>Efficiency</th>
                 <th>Volume</th>
                 <th>ISK/m<sup>3</sup> Mined</th>
-                <th>Compressed</th>
-                <th>Compressed Sell</th>
                 <th>Refined Value</th>
+                <th>Compressed Volume</th>
+                <th>Compressed Sell</th>
+                <th>Compressed ISK/m<sup>3</sup> Mined</th>
             </tr>
             <tr ng-repeat="ore in oreList">
                 <td>{{ores[ore].name}}</td>
                 <td ng-repeat="mineral in mineralList">{{singletonYield(ores[ore], mineral)}}</td>
                 <td>{{getRefiningEfficiency(ores[ore]).toLocaleString('en-US', {style: 'percent', maximumSignificantDigits: 6})}}</td>
                 <td>{{ores[ore].volume.ore}}</td>
-                <td>{{calculateMineralEfficiency(ores[ore]).toFixed(2)}}</td>
+                <td>{{formatPrice(calculateMineralEfficiency(ore))}}</td>
+                <td>{{formatPrice(calculateMineralValue(ore))}}</td>
                 <td>{{ores[ore].volume.compressed}}</td>
-                <td>{{prices[ores[ore].id.compressed].toLocaleString('en-US', {maximumFractionDigits: 2})}}</td>
-                <td>{{calculateMineralValue(ores[ore]).toLocaleString('en-US', {maximumFractionDigits: 2})}}</td>
+                <td>{{formatPrice(prices[ores[ore].id.compressed])}}</td>
+                <td>{{formatPrice(calculateExportEfficiency(ore))}}</td>
             </tr>
         </table>
         <span>
@@ -81,10 +83,7 @@
                 <option value="1.04">4%</option>
             </select>
         </span>
-        <select multiple ng-model="rigs">
-            <option value="HS">Hisec Refining Rig</option>
-            <option value="LNS">Low/Nullsec Refining Rig</option>
-        </select>
+        <button type="button" ng-click="getPrices()">Update Prices</button>
     </div>
 </body>
 </html>
